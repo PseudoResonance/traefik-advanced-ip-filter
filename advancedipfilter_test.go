@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"testing"
 
-	plugin "github.com/PseudoResonance/advancedipfilter"
+	plugin "github.com/PseudoResonance/traefik-advanced-ip-filter"
 )
 
 func TestNew(t *testing.T) {

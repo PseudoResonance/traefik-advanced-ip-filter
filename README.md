@@ -1,11 +1,11 @@
 # Traefik Advanced IP Filter
-[![Code Coverage](https://codecov.io/gh/PseudoResonance/advancedipfilter/branch/master/graph/badge.svg?token=QFGZS5QJSG)](https://codecov.io/gh/PseudoResonance/advancedipfilter)
-[![Code Analysis](https://github.com/PseudoResonance/advancedipfilter/actions/workflows/codeqlAnalysis.yml/badge.svg)](https://github.com/PseudoResonance/advancedipfilter/actions/workflows/codeqlAnalysis.yml)
-[![Codacy Security Scan](https://github.com/PseudoResonance/advancedipfilter/actions/workflows/codacyAnalysis.yml/badge.svg)](https://github.com/PseudoResonance/advancedipfilter/actions/workflows/codacyAnalysis.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/PseudoResonance/advancedipfilter)](https://goreportcard.com/report/github.com/PseudoResonance/advancedipfilter)
-[![Build and Test Source](https://github.com/PseudoResonance/advancedipfilter/actions/workflows/buildAndTest.yml/badge.svg)](https://github.com/PseudoResonance/advancedipfilter/actions/workflows/buildAndTest.yml)
-[![Static Analysis](https://github.com/PseudoResonance/advancedipfilter/actions/workflows/staticAnalysis.yml/badge.svg)](https://github.com/PseudoResonance/advancedipfilter/actions/workflows/staticAnalysis.yml)
-[![Integration Test](https://github.com/PseudoResonance/advancedipfilter/actions/workflows/prodTest.yml/badge.svg)](https://github.com/PseudoResonance/advancedipfilter/actions/workflows/prodTest.yml)
+[![Code Coverage](https://codecov.io/gh/PseudoResonance/traefik-advanced-ip-filter/branch/master/graph/badge.svg?token=QFGZS5QJSG)](https://codecov.io/gh/PseudoResonance/traefik-advanced-ip-filter)
+[![Code Analysis](https://github.com/PseudoResonance/traefik-advanced-ip-filter/actions/workflows/codeqlAnalysis.yml/badge.svg)](https://github.com/PseudoResonance/traefik-advanced-ip-filter/actions/workflows/codeqlAnalysis.yml)
+[![Codacy Security Scan](https://github.com/PseudoResonance/traefik-advanced-ip-filter/actions/workflows/codacyAnalysis.yml/badge.svg)](https://github.com/PseudoResonance/traefik-advanced-ip-filter/actions/workflows/codacyAnalysis.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/PseudoResonance/traefik-advanced-ip-filter)](https://goreportcard.com/report/github.com/PseudoResonance/traefik-advanced-ip-filter)
+[![Build and Test Source](https://github.com/PseudoResonance/traefik-advanced-ip-filter/actions/workflows/buildAndTest.yml/badge.svg)](https://github.com/PseudoResonance/traefik-advanced-ip-filter/actions/workflows/buildAndTest.yml)
+[![Static Analysis](https://github.com/PseudoResonance/traefik-advanced-ip-filter/actions/workflows/staticAnalysis.yml/badge.svg)](https://github.com/PseudoResonance/traefik-advanced-ip-filter/actions/workflows/staticAnalysis.yml)
+[![Integration Test](https://github.com/PseudoResonance/traefik-advanced-ip-filter/actions/workflows/prodTest.yml/badge.svg)](https://github.com/PseudoResonance/traefik-advanced-ip-filter/actions/workflows/prodTest.yml)
 
 The Traefik built-in IP filter is great, but lacks configuration and sometimes doesn't work with the environment.
 
@@ -43,7 +43,7 @@ See the [Traefik ipAllowList documentation](https://doc.traefik.io/traefik/refer
 experimental:
   plugins:
     advancedipfilter:
-      modulename: github.com/PseudoResonance/advancedipfilter
+      modulename: github.com/PseudoResonance/traefik-advanced-ip-filter
       version: v1.0.0
 ```
 
@@ -85,7 +85,7 @@ http:
 
 # Testing
 
-[https://github.com/PseudoResonance/advancedipfilter/tree/master/test](https://github.com/PseudoResonance/advancedipfilter/tree/master/test)
+[https://github.com/PseudoResonance/traefik-advanced-ip-filter/tree/master/test](https://github.com/PseudoResonance/traefik-advanced-ip-filter/tree/master/test)
 
 We have written the following tests in this repo:
 

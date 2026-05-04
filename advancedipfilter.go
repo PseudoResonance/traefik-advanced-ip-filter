@@ -16,16 +16,16 @@ type Config struct {
 	Debug       bool       `json:"debug,omitempty"`
 	SourceRange []string   `json:"sourceRange,omitempty"` // DONE
 	Denylist    bool       `json:"denylist,omitempty"`    // DONE
-	IPStrategy  IpStrategy `json:"ipStrategy,omitempty"`
+	IPStrategy  IPStrategy `json:"ipStrategy,omitempty"`
 }
 
 type ConfigParsed struct {
-	SourceRange []IpOrNet
+	SourceRange []IPOrNet
 	Denylist    bool
-	IPStrategy  IpStrategyParsed
+	IPStrategy  IPStrategyParsed
 }
 
-type IpStrategy struct {
+type IPStrategy struct {
 	Depth           int      `json:"depth,omitempty"`
 	Header          string   `json:"header,omitempty"`
 	IsTrustedHeader string   `json:"isTrustedHeader,omitempty"`
@@ -34,7 +34,7 @@ type IpStrategy struct {
 	Ipv6Subnet      int      `json:"ipv6Subnet,omitempty"`
 }
 
-type IpStrategyParsed struct {
+type IPStrategyParsed struct {
 	Depth           int
 	Header          string
 	IsTrustedHeader string
@@ -49,7 +49,7 @@ func CreateConfig() *Config {
 		Debug:       false,
 		SourceRange: []string{},
 		Denylist:    false,
-		IPStrategy: IpStrategy{
+		IPStrategy: IPStrategy{
 			Depth:           0,
 			Header:          "X-Forwarded-For",
 			IsTrustedHeader: "X-Is-Trusted",
@@ -59,7 +59,7 @@ func CreateConfig() *Config {
 	}
 }
 
-type IpOrNet struct {
+type IPOrNet struct {
 	ip  netip.Addr
 	net netip.Prefix
 	raw string
@@ -80,9 +80,9 @@ func New(_ context.Context, next http.Handler, config *Config, name string) (htt
 		name:  name,
 		debug: config.Debug,
 		config: ConfigParsed{
-			SourceRange: []IpOrNet{},
+			SourceRange: []IPOrNet{},
 			Denylist:    config.Denylist,
-			IPStrategy: IpStrategyParsed{
+			IPStrategy: IPStrategyParsed{
 				Depth:           config.IPStrategy.Depth,
 				Header:          config.IPStrategy.Header,
 				IsTrustedHeader: config.IPStrategy.IsTrustedHeader,
@@ -99,9 +99,9 @@ func New(_ context.Context, next http.Handler, config *Config, name string) (htt
 
 	if config.SourceRange != nil {
 		for _, v := range config.SourceRange {
-			ip, errIp := netip.ParseAddr(v)
+			ip, errIP := netip.ParseAddr(v)
 			prefix, errPrefix := netip.ParsePrefix(v)
-			if errIp != nil && errPrefix != nil {
+			if errIP != nil && errPrefix != nil {
 				return nil, fmt.Errorf("invalid IP/CIDR in sourceRange [%s]", v)
 			}
 			if advancedIPFilter.debug {
@@ -111,7 +111,7 @@ func New(_ context.Context, next http.Handler, config *Config, name string) (htt
 					fmt.Printf("DEBUG: AdvancedIpFilter: IP/CIDR [%s] parsed as IP [%s]\n", v, ip.String())
 				}
 			}
-			advancedIPFilter.config.SourceRange = append(advancedIPFilter.config.SourceRange, IpOrNet{
+			advancedIPFilter.config.SourceRange = append(advancedIPFilter.config.SourceRange, IPOrNet{
 				ip:  ip,
 				net: prefix,
 				raw: v,
@@ -135,12 +135,12 @@ func New(_ context.Context, next http.Handler, config *Config, name string) (htt
 }
 
 func (r *AdvancedIPFilter) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	testIp := netip.Addr{}
-	if len(r.config.IPStrategy.Header) > 0 {
+	testIP := netip.Addr{}
+	if len(r.config.IPStrategy.Header) > 0 && r.isTrusted(req) {
 		headerValue := req.Header.Get(r.config.IPStrategy.Header)
-		ip := r.getForwardedIp(headerValue)
+		ip := r.getForwardedIP(headerValue)
 		if ip.IsValid() {
-			testIp = ip
+			testIP = ip
 		} else if !r.config.IPStrategy.SourceFallback {
 			if r.debug {
 				fmt.Printf("DEBUG: AdvancedIpFilter: Forbidden: IP header [%s]=[%s] did not contain any usable IP and source address fallback was disabled\n", r.config.IPStrategy.Header, headerValue)
@@ -155,7 +155,7 @@ func (r *AdvancedIPFilter) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 		http.Error(rw, "Forbidden", http.StatusForbidden)
 		return
 	}
-	if !testIp.IsValid() {
+	if !testIP.IsValid() {
 		addrPort, err := netip.ParseAddrPort(req.RemoteAddr)
 		if err != nil {
 			if r.debug {
@@ -171,61 +171,61 @@ func (r *AdvancedIPFilter) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 			http.Error(rw, "Unknown source", http.StatusInternalServerError)
 			return
 		}
-		testIp = addrPort.Addr()
+		testIP = addrPort.Addr()
 	}
 
-	testIp = r.truncateIpv6(testIp)
+	testIP = r.truncateIpv6(testIP)
 
-	if r.ipInSource(testIp) != r.config.Denylist {
+	if r.ipInSource(testIP) != r.config.Denylist {
 		if r.debug {
-			fmt.Printf("DEBUG: AdvancedIpFilter: IP allowed [%s]\n", testIp.String())
+			fmt.Printf("DEBUG: AdvancedIpFilter: IP allowed [%s]\n", testIP.String())
 		}
 		r.next.ServeHTTP(rw, req)
 	} else {
 		if r.debug {
-			fmt.Printf("DEBUG: AdvancedIpFilter: IP denied [%s]\n", testIp.String())
+			fmt.Printf("DEBUG: AdvancedIpFilter: IP denied [%s]\n", testIP.String())
 		}
 		http.Error(rw, "Forbidden", http.StatusForbidden)
 	}
 }
 
-func (r *AdvancedIPFilter) truncateIpv6(testIp netip.Addr) netip.Addr {
-	if !testIp.Is6() || r.config.IPStrategy.Ipv6Subnet <= 0 {
-		return testIp
+func (r *AdvancedIPFilter) truncateIpv6(testIP netip.Addr) netip.Addr {
+	if !testIP.Is6() || r.config.IPStrategy.Ipv6Subnet <= 0 {
+		return testIP
 	}
 
-	res, err := testIp.Prefix(r.config.IPStrategy.Ipv6Subnet)
+	res, err := testIP.Prefix(r.config.IPStrategy.Ipv6Subnet)
 	if err != nil {
-		fmt.Printf("DEBUG: AdvancedIpFilter: Error while truncating IP [%s] with subnet of [%d]: [%v]\n", testIp.String(), r.config.IPStrategy.Ipv6Subnet, err)
-		return testIp
+		fmt.Printf("DEBUG: AdvancedIpFilter: Error while truncating IP [%s] with subnet of [%d]: [%v]\n", testIP.String(), r.config.IPStrategy.Ipv6Subnet, err)
+		return testIP
 	}
 
 	if r.debug {
-		fmt.Printf("DEBUG: AdvancedIpFilter: IP [%s] truncated to [%s] by ipStrategy.ipv6Subnet of [%d]\n", testIp.String(), res.String(), r.config.IPStrategy.Ipv6Subnet)
+		fmt.Printf("DEBUG: AdvancedIpFilter: IP [%s] truncated to [%s] by ipStrategy.ipv6Subnet of [%d]\n", testIP.String(), res.String(), r.config.IPStrategy.Ipv6Subnet)
 	}
-	return testIp
+	return testIP
 }
 
-func (r *AdvancedIPFilter) ipInSource(testIp netip.Addr) bool {
+func (r *AdvancedIPFilter) ipInSource(testIP netip.Addr) bool {
 	for _, v := range r.config.SourceRange {
 		if v.ip.IsValid() {
-			if v.ip == testIp {
+			if v.ip == testIP {
 				if r.debug {
-					fmt.Printf("DEBUG: AdvancedIpFilter: Test IP [%s] matched by IP against [%s]\n", testIp.String(), v.raw)
+					fmt.Printf("DEBUG: AdvancedIpFilter: Test IP [%s] matched by IP against [%s]\n", testIP.String(), v.raw)
 				}
 				return true
 			}
 		} else if v.net.IsValid() {
-			if v.net.Contains(testIp) {
+			if v.net.Contains(testIP) {
 				if r.debug {
-					fmt.Printf("DEBUG: AdvancedIpFilter: Test IP [%s] matched by CIDR against [%s]\n", testIp.String(), v.raw)
+					fmt.Printf("DEBUG: AdvancedIpFilter: Test IP [%s] matched by CIDR against [%s]\n", testIP.String(), v.raw)
 				}
 				return true
 			}
 		}
 	}
 	if r.debug {
-		fmt.Printf("DEBUG: AdvancedIpFilter: Test IP [%s] did not match any IPs/CIDRs\n", testIp.String())
+		fmt.Printf("DEBUG: AdvancedIpFilter: Test IP [%s] did not match any IPs/CIDRs\n", testIP.String())
 	}
 	return false
 }
@@ -252,7 +252,7 @@ func (r *AdvancedIPFilter) isTrusted(req *http.Request) bool {
 	return true
 }
 
-func (r *AdvancedIPFilter) isIpExcluded(ip netip.Addr) bool {
+func (r *AdvancedIPFilter) isIPExcluded(ip netip.Addr) bool {
 	if !ip.IsValid() {
 		return true
 	}
@@ -260,7 +260,7 @@ func (r *AdvancedIPFilter) isIpExcluded(ip netip.Addr) bool {
 	return slices.Contains(r.config.IPStrategy.ExcludedIps, ip)
 }
 
-func (r *AdvancedIPFilter) getForwardedIp(header string) netip.Addr {
+func (r *AdvancedIPFilter) getForwardedIP(header string) netip.Addr {
 	s := strings.Split(header, ",")
 	// depth is ignored if its value is less than or equal to 0.
 	if r.config.IPStrategy.Depth <= 0 {
@@ -278,7 +278,7 @@ func (r *AdvancedIPFilter) getForwardedIp(header string) netip.Addr {
 				}
 				continue
 			}
-			if !r.isIpExcluded(ip) {
+			if !r.isIPExcluded(ip) {
 				// First non excluded IP is chosen
 				return ip
 			}
@@ -291,11 +291,11 @@ func (r *AdvancedIPFilter) getForwardedIp(header string) netip.Addr {
 		return netip.Addr{}
 	}
 
-	strIp := strings.TrimSpace(s[len(s)-r.config.IPStrategy.Depth])
-	ip, err := netip.ParseAddr(strIp)
+	strIP := strings.TrimSpace(s[len(s)-r.config.IPStrategy.Depth])
+	ip, err := netip.ParseAddr(strIP)
 	if err != nil {
 		if r.debug {
-			fmt.Printf("DEBUG: AdvancedIpFilter: Error parsing IP [%s] in header [%s]\n", strIp, header)
+			fmt.Printf("DEBUG: AdvancedIpFilter: Error parsing IP [%s] in header [%s]\n", strIP, header)
 			return netip.Addr{}
 		}
 	}

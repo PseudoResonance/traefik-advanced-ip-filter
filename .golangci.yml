@@ -29,7 +29,7 @@ linters-settings:
         - "!$test"
         allow:
         - $gostd
-        - github.com/PseudoResonance/advancedipfilter
+        - github.com/PseudoResonance/traefik-advanced-ip-filter
 
 linters:
   enable-all: true

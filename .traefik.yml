@@ -1,6 +1,6 @@
 displayName: Advanced IP Filter
 type: middleware
-import: github.com/PseudoResonance/advancedipfilter
+import: github.com/PseudoResonance/traefik-advanced-ip-filter
 
 summary: IP filter middleware but with increased control over allowing/blocking or use of custom headers.
 
