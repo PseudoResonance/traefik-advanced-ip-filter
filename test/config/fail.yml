@@ -1,0 +1,10 @@
+http:
+  middlewares:
+    advancedipfilter:
+      plugin:
+        advancedipfilter:
+          debug: true
+          matchStatus:
+            - 500
+            - 503
+          replaceStatus: 404

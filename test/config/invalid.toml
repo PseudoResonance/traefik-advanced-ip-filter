@@ -1,0 +1,9 @@
+
+[http]
+  [http.middlewares]
+    [http.middlewares.advancedipfilter]
+      [http.middlewares.advancedipfilter.plugin]
+        [http.middlewares.advancedipfilter.plugin.advancedipfilter]
+          debug = true
+          matchStatus = [500, 503]
+          replaceStatus = 404
