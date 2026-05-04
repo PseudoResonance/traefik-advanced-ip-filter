@@ -46,7 +46,7 @@ func TestNew(t *testing.T) {
 			recorder := httptest.NewRecorder()
 
 			next := http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
-				rw.WriteHeader(200)
+				rw.WriteHeader(http.StatusOK)
 			})
 
 			handler, err := plugin.New(ctx, next, cfg, "advancedipfilter")
@@ -62,7 +62,7 @@ func TestNew(t *testing.T) {
 
 			handler.ServeHTTP(recorder, req)
 
-			if (recorder.Result().StatusCode == 200) == test.expectedFail {
+			if (recorder.Result().StatusCode == http.StatusOK) == test.expectedFail {
 				t.Errorf("invalid status: %v, expected failure: %t", strconv.Itoa(recorder.Result().StatusCode), test.expectedFail)
 				return
 			}
