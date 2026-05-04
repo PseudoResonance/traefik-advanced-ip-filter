@@ -16,16 +16,16 @@ type Config struct {
 	Debug       bool       `json:"debug,omitempty"`
 	SourceRange []string   `json:"sourceRange,omitempty"` // DONE
 	Denylist    bool       `json:"denylist,omitempty"`    // DONE
-	IPStrategy  IPStrategy `json:"ipStrategy,omitempty"`
+	IPStrategy  ipStrategy `json:"ipStrategy,omitempty"`
 }
 
-type ConfigParsed struct {
-	SourceRange []IPOrNet
+type configParsed struct {
+	SourceRange []ipOrNet
 	Denylist    bool
-	IPStrategy  IPStrategyParsed
+	IPStrategy  ipStrategyParsed
 }
 
-type IPStrategy struct {
+type ipStrategy struct {
 	Depth           int      `json:"depth,omitempty"`
 	Header          string   `json:"header,omitempty"`
 	IsTrustedHeader string   `json:"isTrustedHeader,omitempty"`
@@ -34,7 +34,7 @@ type IPStrategy struct {
 	Ipv6Subnet      int      `json:"ipv6Subnet,omitempty"`
 }
 
-type IPStrategyParsed struct {
+type ipStrategyParsed struct {
 	Depth           int
 	Header          string
 	IsTrustedHeader string
@@ -49,7 +49,7 @@ func CreateConfig() *Config {
 		Debug:       false,
 		SourceRange: []string{},
 		Denylist:    false,
-		IPStrategy: IPStrategy{
+		IPStrategy: ipStrategy{
 			Depth:           0,
 			Header:          "X-Forwarded-For",
 			IsTrustedHeader: "X-Is-Trusted",
@@ -59,7 +59,7 @@ func CreateConfig() *Config {
 	}
 }
 
-type IPOrNet struct {
+type ipOrNet struct {
 	ip  netip.Addr
 	net netip.Prefix
 	raw string
@@ -70,7 +70,7 @@ type AdvancedIPFilter struct {
 	next   http.Handler
 	name   string
 	debug  bool
-	config ConfigParsed
+	config configParsed
 }
 
 // New created a new plugin.
@@ -79,10 +79,10 @@ func New(_ context.Context, next http.Handler, config *Config, name string) (htt
 		next:  next,
 		name:  name,
 		debug: config.Debug,
-		config: ConfigParsed{
-			SourceRange: []IPOrNet{},
+		config: configParsed{
+			SourceRange: []ipOrNet{},
 			Denylist:    config.Denylist,
-			IPStrategy: IPStrategyParsed{
+			IPStrategy: ipStrategyParsed{
 				Depth:           config.IPStrategy.Depth,
 				Header:          config.IPStrategy.Header,
 				IsTrustedHeader: config.IPStrategy.IsTrustedHeader,
@@ -111,7 +111,7 @@ func New(_ context.Context, next http.Handler, config *Config, name string) (htt
 					fmt.Printf("DEBUG: AdvancedIpFilter: IP/CIDR [%s] parsed as IP [%s]\n", v, ip.String())
 				}
 			}
-			advancedIPFilter.config.SourceRange = append(advancedIPFilter.config.SourceRange, IPOrNet{
+			advancedIPFilter.config.SourceRange = append(advancedIPFilter.config.SourceRange, ipOrNet{
 				ip:  ip,
 				net: prefix,
 				raw: v,
@@ -269,7 +269,8 @@ func (r *AdvancedIPFilter) getForwardedIP(header string) netip.Addr {
 		if len(r.config.IPStrategy.ExcludedIps) == 0 {
 			return netip.Addr{}
 		}
-		for _, v := range slices.Backward(s) {
+		for i := range s {
+			v := s[len(s)-i]
 			v = strings.TrimSpace(v)
 			ip, err := netip.ParseAddr(v)
 			if err != nil {
