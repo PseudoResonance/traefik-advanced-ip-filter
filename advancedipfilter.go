@@ -13,25 +13,25 @@ import (
 
 // Config the plugin configuration.
 type Config struct {
-	Debug       bool       `json:"debug,omitempty"`
-	SourceRange []string   `json:"sourceRange,omitempty"` // DONE
-	Denylist    bool       `json:"denylist,omitempty"`    // DONE
-	IPStrategy  ipStrategy `json:"ipStrategy,omitempty"`
+	Debug       bool        `json:"debug"`
+	SourceRange []string    `json:"sourceRange"` // DONE
+	Denylist    bool        `json:"denylist"`    // DONE
+	IPStrategy  *ipStrategy `json:"ipStrategy"`
 }
 
 type configParsed struct {
 	SourceRange []ipOrNet
 	Denylist    bool
-	IPStrategy  ipStrategyParsed
+	IPStrategy  *ipStrategyParsed
 }
 
 type ipStrategy struct {
-	Depth           int      `json:"depth,omitempty"`
-	Header          string   `json:"header,omitempty"`
-	IsTrustedHeader string   `json:"isTrustedHeader,omitempty"`
-	SourceFallback  bool     `json:"sourceFallback,omitempty"`
-	ExcludedIps     []string `json:"excludedIPs,omitempty"`
-	Ipv6Subnet      int      `json:"ipv6Subnet,omitempty"`
+	Depth           int      `json:"depth"`
+	Header          string   `json:"header"`
+	IsTrustedHeader string   `json:"isTrustedHeader"`
+	SourceFallback  bool     `json:"sourceFallback"`
+	ExcludedIps     []string `json:"excludedIPs"`
+	Ipv6Subnet      int      `json:"ipv6Subnet"`
 }
 
 type ipStrategyParsed struct {
@@ -49,7 +49,7 @@ func CreateConfig() *Config {
 		Debug:       false,
 		SourceRange: []string{},
 		Denylist:    false,
-		IPStrategy: ipStrategy{
+		IPStrategy: &ipStrategy{
 			Depth:           0,
 			Header:          "X-Forwarded-For",
 			IsTrustedHeader: "X-Is-Trusted",
@@ -82,7 +82,7 @@ func New(_ context.Context, next http.Handler, config *Config, name string) (htt
 		config: configParsed{
 			SourceRange: []ipOrNet{},
 			Denylist:    config.Denylist,
-			IPStrategy: ipStrategyParsed{
+			IPStrategy: &ipStrategyParsed{
 				Depth:           config.IPStrategy.Depth,
 				Header:          config.IPStrategy.Header,
 				IsTrustedHeader: config.IPStrategy.IsTrustedHeader,
