@@ -1,4 +1,4 @@
-package advancedipfilter_test
+package traefik_advanced_ip_filter_test
 
 import (
 	"context"
@@ -49,7 +49,7 @@ func TestNew(t *testing.T) {
 				rw.WriteHeader(http.StatusOK)
 			})
 
-			handler, err := plugin.New(ctx, next, cfg, "advancedipfilter")
+			handler, err := plugin.New(ctx, next, cfg, "traefik_advanced_ip_filter")
 			if err != nil {
 				t.Fatal(err)
 			}

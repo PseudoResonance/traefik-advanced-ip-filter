@@ -1,5 +1,5 @@
-// Package advancedipfilter Traefik Plugin.
-package advancedipfilter
+// Package traefik_advanced_ip_filter Traefik Plugin.
+package traefik_advanced_ip_filter
 
 import (
 	"context"
