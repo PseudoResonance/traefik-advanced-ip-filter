@@ -1,5 +1,5 @@
 // Package traefik_advanced_ip_filter Traefik Plugin.
-package traefik_advanced_ip_filter
+package traefik_advanced_ip_filter //nolint:revive
 
 import (
 	"context"
