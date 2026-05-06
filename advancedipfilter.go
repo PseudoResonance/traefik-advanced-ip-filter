@@ -1,5 +1,5 @@
 // Package traefik_advanced_ip_filter Traefik Plugin.
-package traefik_advanced_ip_filter //nolint:revive
+package traefik_advanced_ip_filter //nolint:revive,stylecheck
 
 import (
 	"context"
@@ -14,8 +14,8 @@ import (
 // Config the plugin configuration.
 type Config struct {
 	Debug       bool        `json:"debug"`
-	SourceRange []string    `json:"sourceRange"` // DONE
-	Denylist    bool        `json:"denylist"`    // DONE
+	SourceRange []string    `json:"sourceRange"`
+	Denylist    bool        `json:"denylist"`
 	IPStrategy  *ipStrategy `json:"ipStrategy"`
 }
 

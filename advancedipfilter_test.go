@@ -1,4 +1,4 @@
-package traefik_advanced_ip_filter_test //nolint:revive
+package traefik_advanced_ip_filter_test
 
 import (
 	"context"
