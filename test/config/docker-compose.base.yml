@@ -1,16 +1,35 @@
 name: "test"
 
 networks:
-  proxy:
+  net:
     internal: true
+    ipam:
+      config:
+        - subnet: 192.0.2.0/24
+          gateway: 192.0.2.10
 
 services:
+  client:
+    image: curlimages/curl:8.20.0
+    command: sleep infinity
+    stop_signal: SIGKILL
+    stop_grace_period: 0s
+    depends_on:
+      - whoami
+      - traefik
+    networks:
+      net:
+        ipv4_address: 192.0.2.64
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+
   whoami:
     image: traefik/whoami:${TRAEFIK_WHOAMI_VERSION:-latest}
     depends_on:
       - traefik
     networks:
-      - proxy
+      net:
+        ipv4_address: 192.0.2.32
     volumes:
       - /etc/localtime:/etc/localtime:ro
     labels:
@@ -27,13 +46,17 @@ services:
   traefik:
     image: traefik:${TRAEFIK_VERSION:-latest}
     networks:
-      - proxy
-      - default
-    ports:
-      - 4008:80
+      net:
+        ipv4_address: 192.0.2.128
+      default: {}
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck"]
+      interval: 1s
+      start_period: 1s
+      retries: 30
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik.toml:/etc/traefik/traefik.toml
+      - ./traefik.yml:/etc/traefik/traefik.yml
       - ./logs:/var/logs/traefik
-      - ./config:/etc/traefik/mconfig
+      - ./traefik_config:/etc/traefik/mconfig

@@ -270,7 +270,7 @@ func (r *AdvancedIPFilter) getForwardedIP(header string) netip.Addr {
 			return netip.Addr{}
 		}
 		for i := range s {
-			v := s[len(s)-i]
+			v := s[len(s)-i-1]
 			v = strings.TrimSpace(v)
 			ip, err := netip.ParseAddr(v)
 			if err != nil {

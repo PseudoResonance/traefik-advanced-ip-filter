@@ -1,2 +1,5 @@
-run/
 output/
+work/
+
+**/__pycache__/
+.venv/

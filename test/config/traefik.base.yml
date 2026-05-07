@@ -1,0 +1,45 @@
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+entryPoints:
+  web:
+    address: ":80"
+    forwardedHeaders:
+      insecure: true # Traefik won't trust the headers sent by cURL by default
+
+ping: {}
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: "test_net"
+    watch: true
+  file:
+    directory: "/etc/traefik/mconfig/"
+    watch: "true"
+
+traefikLog:
+  filePath: "/var/logs/traefik/traefik.log"
+  format: "json"
+
+log:
+  level: "DEBUG"
+  filePath: "/var/logs/traefik/debug.log"
+  format: "json"
+
+accessLog:
+  filePath: "/var/logs/traefik/access.log"
+  bufferingSize: 0
+  format: "json"
+  filters:
+    statusCodes: [
+      "100-800",
+    ]
+    retryAttempts: true
+    minDuration: "0ms"
+  fields:
+    headers:
+      defaultMode: "keep"
+    defaultMode: "keep"

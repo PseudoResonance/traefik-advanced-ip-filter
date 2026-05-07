@@ -83,6 +83,10 @@ http:
           - url: http://127.0.0.1:5000
 ```
 
+## Note
+
+Traefik includes some X-Forwarded-For header handling by default, and will process these before the middleware runs. Thus, if you are attempting to use this as access control with headers instead, you may need to trust your source IPs in the Traefik entrypoint config first.
+
 # Testing
 
 [https://github.com/PseudoResonance/traefik-advanced-ip-filter/tree/master/test](https://github.com/PseudoResonance/traefik-advanced-ip-filter/tree/master/test)
