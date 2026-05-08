@@ -121,6 +121,7 @@ func New(_ context.Context, next http.Handler, config *Config, name string) (htt
 	return advancedIPFilter, nil
 }
 
+//nolint:gocognit
 func (r *AdvancedIPFilter) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	testIP := netip.Addr{}
 	if len(r.config.IPStrategy.Header) > 0 && r.isTrusted(req) {
