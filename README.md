@@ -44,7 +44,7 @@ experimental:
   plugins:
     advancedipfilter:
       modulename: github.com/PseudoResonance/traefik-advanced-ip-filter
-      version: v1.0.1
+      version: v1.0.2
 ```
 
 ### Plugin configuration
