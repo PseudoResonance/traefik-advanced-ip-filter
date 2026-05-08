@@ -1,5 +1,5 @@
 # Traefik Advanced IP Filter
-[![Code Coverage](https://codecov.io/gh/PseudoResonance/traefik-advanced-ip-filter/branch/master/graph/badge.svg?token=QFGZS5QJSG)](https://codecov.io/gh/PseudoResonance/traefik-advanced-ip-filter)
+[![Code Coverage](https://codecov.io/gh/PseudoResonance/traefik-advanced-ip-filter/branch/main/graph/badge.svg?token=QFGZS5QJSG)](https://codecov.io/gh/PseudoResonance/traefik-advanced-ip-filter)
 [![Code Analysis](https://github.com/PseudoResonance/traefik-advanced-ip-filter/actions/workflows/codeqlAnalysis.yml/badge.svg)](https://github.com/PseudoResonance/traefik-advanced-ip-filter/actions/workflows/codeqlAnalysis.yml)
 [![Codacy Security Scan](https://github.com/PseudoResonance/traefik-advanced-ip-filter/actions/workflows/codacyAnalysis.yml/badge.svg)](https://github.com/PseudoResonance/traefik-advanced-ip-filter/actions/workflows/codacyAnalysis.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/PseudoResonance/traefik-advanced-ip-filter)](https://goreportcard.com/report/github.com/PseudoResonance/traefik-advanced-ip-filter)
@@ -32,7 +32,7 @@ IpStrategy Configuration
 | header          | string         | No       | Name of header to search for IPs in                                       |
 | isTrustedHeader | string         | No       | Name of header to signal when the IP header should be ignored             |
 | sourceFallback  | bool           | No       | Whether to fallback to the source IP if header IP is missing              |
-| excludedIPs     | []string       | No       | IPs to exclude from the IP header list                                    |
+| excludedIPs     | []string       | No       | IPs/CIDRs to exclude from the IP header list                              |
 | ipv6Subnet      | int            | No       | Truncates the source IPv6 with the provided subnet size prior to matching |
 
 See the [Traefik ipAllowList documentation](https://doc.traefik.io/traefik/reference/routing-configuration/http/middlewares/ipallowlist/) for additional information on most options.
@@ -89,14 +89,14 @@ Traefik includes some X-Forwarded-For header handling by default, and will proce
 
 # Testing
 
-[https://github.com/PseudoResonance/traefik-advanced-ip-filter/tree/master/test](https://github.com/PseudoResonance/traefik-advanced-ip-filter/tree/master/test)
+[https://github.com/PseudoResonance/traefik-advanced-ip-filter/tree/main/test](https://github.com/PseudoResonance/traefik-advanced-ip-filter/tree/main/test)
 
 We have written the following tests in this repo:
 
 - golang linting
 - yaegi tests (validate configuration matches what Traefik expects)
 - General GO code coverage
-- Virtual implementation tests (spin up traefik with yml/toml tests to make sure the plugin actually works)
-- Live implementation tests (spin up traefik with the plugin definition as it would be for you, and run the same tests again)
+- Dev environment live smoke tests (spin up traefik with comprehensive tests to make sure the plugin actually works in a real environment)
+- Production live smoke tests (spin up traefik with the production plugin definition, as it would be for you, and run the same tests again)
 
 These tests allow us to make sure the plugin is always functional with Traefik and Traefik version updates.

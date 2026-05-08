@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/netip"
-	"slices"
 	"strings"
 )
 
@@ -39,7 +38,7 @@ type ipStrategyParsed struct {
 	Header          string
 	IsTrustedHeader string
 	SourceFallback  bool
-	ExcludedIps     []netip.Addr
+	ExcludedIps     []ipOrNet
 	Ipv6Subnet      int
 }
 
@@ -87,7 +86,7 @@ func New(_ context.Context, next http.Handler, config *Config, name string) (htt
 				Header:          config.IPStrategy.Header,
 				IsTrustedHeader: config.IPStrategy.IsTrustedHeader,
 				SourceFallback:  config.IPStrategy.SourceFallback,
-				ExcludedIps:     []netip.Addr{},
+				ExcludedIps:     []ipOrNet{},
 				Ipv6Subnet:      config.IPStrategy.Ipv6Subnet,
 			},
 		},
@@ -99,23 +98,11 @@ func New(_ context.Context, next http.Handler, config *Config, name string) (htt
 
 	if config.SourceRange != nil {
 		for _, v := range config.SourceRange {
-			ip, errIP := netip.ParseAddr(v)
-			prefix, errPrefix := netip.ParsePrefix(v)
-			if errIP != nil && errPrefix != nil {
-				return nil, fmt.Errorf("invalid IP/CIDR in sourceRange [%s]", v)
+			ipnet, err := advancedIPFilter.parseIPOrNet(v)
+			if err != nil {
+				return nil, fmt.Errorf("error parsing sourceRange [%w]", err)
 			}
-			if advancedIPFilter.debug {
-				if prefix.IsValid() {
-					fmt.Printf("DEBUG: AdvancedIpFilter: IP/CIDR [%s] parsed as CIDR [%s]\n", v, prefix.String())
-				} else if ip.IsValid() {
-					fmt.Printf("DEBUG: AdvancedIpFilter: IP/CIDR [%s] parsed as IP [%s]\n", v, ip.String())
-				}
-			}
-			advancedIPFilter.config.SourceRange = append(advancedIPFilter.config.SourceRange, ipOrNet{
-				ip:  ip,
-				net: prefix,
-				raw: v,
-			})
+			advancedIPFilter.config.SourceRange = append(advancedIPFilter.config.SourceRange, *ipnet)
 		}
 	} else {
 		return nil, errors.New("IP sourceRange was not configured!") //nolint:revive,stylecheck
@@ -123,11 +110,11 @@ func New(_ context.Context, next http.Handler, config *Config, name string) (htt
 
 	if config.IPStrategy.ExcludedIps != nil {
 		for _, v := range config.IPStrategy.ExcludedIps {
-			ip, err := netip.ParseAddr(v)
+			ipnet, err := advancedIPFilter.parseIPOrNet(v)
 			if err != nil {
-				return nil, fmt.Errorf("invalid IP in ipStrategy.excludedIps [%s]", v)
+				return nil, fmt.Errorf("error parsing ipStrategy.excludedIps [%w]", err)
 			}
-			advancedIPFilter.config.IPStrategy.ExcludedIps = append(advancedIPFilter.config.IPStrategy.ExcludedIps, ip)
+			advancedIPFilter.config.IPStrategy.ExcludedIps = append(advancedIPFilter.config.IPStrategy.ExcludedIps, *ipnet)
 		}
 	}
 
@@ -156,6 +143,13 @@ func (r *AdvancedIPFilter) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 		return
 	}
 	if !testIP.IsValid() {
+		if r.debug {
+			if len(r.config.IPStrategy.Header) > 0 && r.isTrusted(req) {
+				fmt.Printf("DEBUG: AdvancedIpFilter: Unable to fetch IP from header, falling back to source IP\n")
+			} else {
+				fmt.Printf("DEBUG: AdvancedIpFilter: Using source IP\n")
+			}
+		}
 		addrPort, err := netip.ParseAddrPort(req.RemoteAddr)
 		if err != nil {
 			if r.debug {
@@ -189,6 +183,26 @@ func (r *AdvancedIPFilter) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 	}
 }
 
+func (r *AdvancedIPFilter) parseIPOrNet(input string) (*ipOrNet, error) {
+	ip, errIP := netip.ParseAddr(input)
+	prefix, errPrefix := netip.ParsePrefix(input)
+	if errIP != nil && errPrefix != nil {
+		return nil, fmt.Errorf("invalid IP/CIDR [%s]", input)
+	}
+	if r.debug {
+		if prefix.IsValid() {
+			fmt.Printf("DEBUG: AdvancedIpFilter: IP/CIDR [%s] parsed as CIDR [%s]\n", input, prefix.String())
+		} else if ip.IsValid() {
+			fmt.Printf("DEBUG: AdvancedIpFilter: IP/CIDR [%s] parsed as IP [%s]\n", input, ip.String())
+		}
+	}
+	return &ipOrNet{
+		ip:  ip,
+		net: prefix,
+		raw: input,
+	}, nil
+}
+
 func (r *AdvancedIPFilter) truncateIpv6(testIP netip.Addr) netip.Addr {
 	if !testIP.Is6() || r.config.IPStrategy.Ipv6Subnet <= 0 {
 		return testIP
@@ -203,7 +217,7 @@ func (r *AdvancedIPFilter) truncateIpv6(testIP netip.Addr) netip.Addr {
 	if r.debug {
 		fmt.Printf("DEBUG: AdvancedIpFilter: IP [%s] truncated to [%s] by ipStrategy.ipv6Subnet of [%d]\n", testIP.String(), res.String(), r.config.IPStrategy.Ipv6Subnet)
 	}
-	return testIP
+	return res.Addr()
 }
 
 func (r *AdvancedIPFilter) ipInSource(testIP netip.Addr) bool {
@@ -257,13 +271,33 @@ func (r *AdvancedIPFilter) isIPExcluded(ip netip.Addr) bool {
 		return true
 	}
 
-	return slices.Contains(r.config.IPStrategy.ExcludedIps, ip)
+	for _, v := range r.config.IPStrategy.ExcludedIps {
+		if v.ip.IsValid() {
+			if v.ip == ip {
+				if r.debug {
+					fmt.Printf("DEBUG: AdvancedIpFilter: Test IP [%s] excluded by matching by IP against [%s]\n", ip.String(), v.raw)
+				}
+				return true
+			}
+		} else if v.net.IsValid() {
+			if v.net.Contains(ip) {
+				if r.debug {
+					fmt.Printf("DEBUG: AdvancedIpFilter: Test IP [%s] excluded by matching by CIDR against [%s]\n", ip.String(), v.raw)
+				}
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (r *AdvancedIPFilter) getForwardedIP(header string) netip.Addr {
 	s := strings.Split(header, ",")
 	// depth is ignored if its value is less than or equal to 0.
 	if r.config.IPStrategy.Depth <= 0 {
+		if r.debug {
+			fmt.Printf("DEBUG: AdvancedIpFilter: Searching for IP in header via exclusion\n")
+		}
 		// If depth is specified, excludedIPs is ignored.
 		// Thus, excludedIPs is used only if depth isn't specified
 		if len(r.config.IPStrategy.ExcludedIps) == 0 {
@@ -285,6 +319,10 @@ func (r *AdvancedIPFilter) getForwardedIP(header string) netip.Addr {
 			}
 		}
 		return netip.Addr{}
+	}
+
+	if r.debug {
+		fmt.Printf("DEBUG: AdvancedIpFilter: Searching for IP in header via depth\n")
 	}
 
 	// If depth is greater than the total number of IPs in X-Forwarded-For, then the client IP will be empty.

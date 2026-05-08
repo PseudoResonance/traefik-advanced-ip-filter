@@ -1,21 +1,28 @@
 #!/usr/bin/env python3
 
-from typing import TypedDict
+from typing import List, TypedDict
 import signal
 import sys
 import pathlib
 import re
 import subprocess
 import os
+import time
+import runpy
+import traceback
 
 from src import docker
 from src import config
 from src import runner
-import test_definitions
 
 BASE_REPO_DIR = "../"
 
 d = None # Docker instance
+
+class TestInfo(TypedDict):
+	name: str
+	file: pathlib.Path
+	definition: config.TestOptions
 
 class PluginInfo(TypedDict):
 	name: str
@@ -27,6 +34,29 @@ def signal_handler(signalnum, _):
 	signal.signal(signalnum, signal.SIG_IGN)
 	cleanup()
 	sys.exit(0)
+
+def load_tests(test_dir: pathlib.Path) -> dict[str, TestInfo]:
+	all_tests: dict[str, TestInfo] = dict()
+	for root, _, files in test_dir.walk(top_down=True):
+		if root != test_dir:
+			break
+		for f in files:
+			if (root / f).suffix == ".py":
+				print(f"Loading tests from [{(root / f).name}]")
+				output = runpy.run_path(str(root / f))
+				if "TESTS" in output:
+					for k, v in output["TESTS"].items():
+						if k in all_tests:
+							print(f"Test [{k}] was already loaded by [{all_tests[k]["file"].name}]")
+							sys.exit(2)
+						all_tests[k] = {
+							"name": k,
+							"file": root / f,
+							"definition": v,
+						}
+	
+	return all_tests
+				
 
 def configure(mode: str, plugin: PluginInfo, config: config.ConfigOptions) -> config.ConfigOptions:
 	config["whoami_extra_labels"] += [f"traefik.http.routers.whoami.middlewares={plugin["name"]}@file"]
@@ -95,6 +125,7 @@ def main() -> None:
 	work_dir.mkdir(parents=True, exist_ok=True)
 	log_dir = work_dir / "logs"
 	log_dir.mkdir(parents=True, exist_ok=True)
+	test_dir = base_dir / "tests"
 	config_dir = base_dir / "config"
 	print(f"Work dir [{work_dir}]")
 
@@ -112,7 +143,7 @@ def main() -> None:
 		"whoami_extra_labels": [],
 	}))
 
-	c.gen_static_config()
+	state = c.gen_static_config()
 
 	# Empty output dir
 	for root, dirs, files in c.get_options()["output_dir"].walk(top_down=False):
@@ -136,32 +167,43 @@ def main() -> None:
 
 	d.pull()
 
+	tests = load_tests(test_dir)
+
 	all_result = True
-	failed_tests = []
+	failed_tests: List[TestInfo] = []
 	
-	for name, conf in test_definitions.TESTS.items():
+	for name, info in tests.items():
 		if target_test is None or target_test == name:
-			print(f"Running test [{name}]")
-			c.gen_config(conf)
-			d.start()
+			result = False
+			try:
+				print(f"Running test [{name}]")
+				c.gen_config(info["definition"])
+				d.start()
 
-			result = runner.run(c.get_options(), name, conf, d)
-			print(f"Test [{name}] result: {"success" if result else "fail"}")
-			all_result = all_result and result
-			if not result:
-				failed_tests.append(name)
+				time.sleep(2) # Traefik is slow sometimes...
 
-			d.stop_service("traefik")
+				result = runner.run(c.get_options(), state, name, info["definition"])
+			except Exception as e:
+				result = False
+				print(f"Exception while executing test {info["name"]} from {info["file"].name}\n{e}")
+				print(traceback.format_exc())
+			finally:
+				print(f"Test [{name}] result: {"success" if result else "fail"}")
+				all_result = all_result and result
+				if not result:
+					failed_tests.append(info)
 
-			runner.archive(c.get_options(), name, conf)
+				d.stop_service("traefik")
+
+				runner.archive(c.get_options(), name, info["definition"])
 
 	cleanup()
 	print("All tests completed")
 	print(f"Final result: {"success" if all_result else "fail"}")
 	if not all_result:
 		print("Failed tests:")
-		for name in failed_tests:
-			print(f"  - {name}")
+		for info in failed_tests:
+			print(f"  - {info["name"]} from {info["file"].name}")
 	sys.exit(0 if all_result else 10)
 
 def cleanup() -> None:

@@ -3,23 +3,35 @@ name: "test"
 networks:
   net:
     internal: true
+    enable_ipv4: true
+    enable_ipv6: true
     ipam:
       config:
         - subnet: 192.0.2.0/24
           gateway: 192.0.2.10
+        - subnet: cfff:d518:1358:3724::/64
+          gateway: cfff:d518:1358:3724:c2ed:f730:7b6d:7f30
 
 services:
-  client:
-    image: curlimages/curl:8.20.0
-    command: sleep infinity
+  proxy:
+    image: httptoolkit/docker-socks-tunnel:latest
     stop_signal: SIGKILL
     stop_grace_period: 0s
     depends_on:
       - whoami
       - traefik
+    ports:
+      - name: ingress
+        target: 1080
+        host_ip: 127.0.0.1
+        published: "14694"
+        protocol: tcp
+        mode: host
     networks:
       net:
         ipv4_address: 192.0.2.64
+        ipv6_address: cfff:d518:1358:3724:1e59:ddd8:9586:1acd
+      default: {}
     volumes:
       - /etc/localtime:/etc/localtime:ro
 
@@ -30,6 +42,7 @@ services:
     networks:
       net:
         ipv4_address: 192.0.2.32
+        ipv6_address: cfff:d518:1358:3724:13ac:2226:2ee4:b3f8
     volumes:
       - /etc/localtime:/etc/localtime:ro
     labels:
@@ -48,6 +61,7 @@ services:
     networks:
       net:
         ipv4_address: 192.0.2.128
+        ipv6_address: cfff:d518:1358:3724:53fe:bedc:782f:dc4e
       default: {}
     healthcheck:
       test: ["CMD", "traefik", "healthcheck"]
